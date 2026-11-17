@@ -1,0 +1,12 @@
+# Dependências e arquivos de ambiente
+node_modules/
+.env
+
+# Arquivos gerados pelo sistema operacional
+.DS_Store
+Thumbs.db
+
+# Logs e arquivos temporários de editores (como VS Code)
+*.log
+.vscode/
+.idea/
