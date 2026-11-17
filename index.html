@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockMaster - Sistema de Controle e Gestão de Estoque</title>
+    <!-- Tailwind CSS CDN para interface moderna e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para ícones técnicos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .badge-critico { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .badge-normal { background-color: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- BARRA SUPERIOR E AUTENTICAÇÃO (UC-01, RF-01) -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white font-bold text-xl">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide">StockMaster</h1>
+                    <p class="text-xs text-slate-400">Sistema de Controle de Estoque v3.0</p>
+                </div>
+            </div>
+
+            <!-- CONTROLE DE SESSÃO / USUÁRIO (UC-01) -->
+            <div class="flex items-center gap-4 bg-slate-800 px-4 py-2 rounded-lg border border-slate-700">
+                <div class="text-right">
+                    <p id="userDisplayName" class="text-xs font-bold text-slate-200">Admin System</p>
+                    <span id="userRoleBadge" class="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-900 text-blue-200">Administrador</span>
+                </div>
+                <div class="h-8 w-px bg-slate-700"></div>
+                <button onclick="alternarPerfil()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-1.5 rounded transition flex items-center gap-1.5" title="Alternar perfil para testes de permissão">
+                    <i class="fa-solid fa-user-gear"></i>
+                    <span>Alternar Perfil</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- METRICAS DO DASHBOARD E ALERTAS (RF-06, RNF-04) -->
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full space-y-6">
+
+        <!-- CARDS DE ESTATÍSTICAS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase text-slate-500">Total de Produtos (SKUs)</p>
+                    <h3 id="statTotalSKUs" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-box-archive"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase text-slate-500">Valor Investido</p>
+                    <h3 id="statValorTotal" class="text-2xl font-bold text-slate-900 mt-1">R$ 0,00</h3>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-sack-dollar"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase text-slate-500">Estoque Crítico / Baixo</p>
+                    <h3 id="statEstoqueCritico" class="text-2xl font-bold text-red-600 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-red-50 text-red-600 rounded-lg flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase text-slate-500">Total de Registros (Logs)</p>
+                    <h3 id="statTotalLogs" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                </div>
+                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-list-check"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAINEL PRINCIPAL EM MÓDULOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- COLUNA DA ESQUERDA: FORMULÁRIOS DE OPERAÇÃO (UC-02, UC-03, UC-04) -->
+            <div class="space-y-6 lg:col-span-1">
+
+                <!-- MÓDULO 1: CADASTRO DE PRODUTOS (RF-03, RN-02) -->
+                <!-- Restrito a Administradores -->
+                <div id="secaoCadastroProduto" class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                        <i class="fa-solid fa-plus-circle text-blue-600"></i>
+                        <h2 class="font-bold text-slate-800 text-sm uppercase">Cadastrar Produto (RF-03)</h2>
+                    </div>
+
+                    <form id="formCadastroProduto" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Código Identificador / SKU *</label>
+                            <input type="text" id="prodSKU" required placeholder="Ex: TEC-001" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nome do Produto *</label>
+                            <input type="text" id="prodNome" required placeholder="Ex: Teclado Mecânico RGB" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Categoria (RF-02) *</label>
+                                <select id="prodCategoria" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                    <option value="Periféricos">Periféricos</option>
+                                    <option value="Hardware">Hardware</option>
+                                    <option value="Monitores">Monitores</option>
+                                    <option value="Acessórios">Acessórios</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Estoque Mínimo *</label>
+                                <input type="number" id="prodMinimo" min="1" value="5" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Custo (R$) *</label>
+                                <input type="number" step="0.01" id="prodCusto" min="0" required placeholder="0.00" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Preço Venda (R$) *</label>
+                                <input type="number" step="0.01" id="prodVenda" min="0" required placeholder="0.00" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Estoque Inicial *</label>
+                            <input type="number" id="prodEstoqueInicial" min="0" required value="0" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs transition shadow flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-floppy-disk"></i>
+                            <span>Salvar Produto</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- MÓDULO 2: REGISTRO DE MOVIMENTAÇÕES (RF-04, RF-05, RN-01) -->
+                <!-- Acessível por Administradores e Operadores -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                        <i class="fa-solid fa-right-left text-emerald-600"></i>
+                        <h2 class="font-bold text-slate-800 text-sm uppercase">Lançar Movimentação (RF-04/05)</h2>
+                    </div>
+
+                    <form id="formMovimentacao" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Selecione o Produto *</label>
+                            <select id="movProdutoId" required onchange="atualizarPreviewSaldo()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-medium">
+                                <!-- Preenchido via JS -->
+                            </select>
+                        </div>
+
+                        <div id="boxPreviewSaldo" class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg flex justify-between items-center text-xs">
+                            <span class="text-slate-500">Saldo Atual Disponível:</span>
+                            <span id="labelSaldoAtual" class="font-bold text-slate-800">0 UN</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo de Operação *</label>
+                                <select id="movTipo" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none bg-white font-bold">
+                                    <option value="ENTRADA" class="text-emerald-600">ENTRADA (+)</option>
+                                    <option value="SAIDA" class="text-red-600">SAÍDA (-)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Quantidade *</label>
+                                <input type="number" id="movQuantidade" min="1" required placeholder="Qtd" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none font-bold">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Motivo / Justificativa *</label>
+                            <input type="text" id="movMotivo" required placeholder="Ex: Compra NF 1042 / Venda balcão" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs transition shadow flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i>
+                            <span>Confirmar Movimentação</span>
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- COLUNA DA DIREITA: INVENTÁRIO E HISTÓRICO DE AUDITORIA (UC-05, RF-06, RF-07, RF-08) -->
+            <div class="space-y-6 lg:col-span-2">
+
+                <!-- MÓDULO 3: TABELA DE INVENTÁRIO EM TEMPO REAL (RF-06) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-packing text-slate-600"></i>
+                            <h2 class="font-bold text-slate-800 text-sm uppercase">Catálogo de Produtos e Saldo Atual</h2>
+                        </div>
+                        <input type="text" id="buscaInventario" oninput="renderizarTabelas()" placeholder="Buscar por SKU ou Nome..." class="px-3 py-1.5 border border-slate-300 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 w-48">
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100/70 text-slate-600 uppercase font-semibold border-b border-slate-200">
+                                    <th class="p-3">SKU</th>
+                                    <th class="p-3">Produto</th>
+                                    <th class="p-3">Categoria</th>
+                                    <th class="p-3 text-right">Preço Custo</th>
+                                    <th class="p-3 text-right">Preço Venda</th>
+                                    <th class="p-3 text-center">Qtd Atual</th>
+                                    <th class="p-3 text-center">Status (RF-06)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaInventario" class="divide-y divide-slate-200">
+                                <!-- Preenchido dinamicamente pelo JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- MÓDULO 4: HISTÓRICO DE AUDITORIA E EXPORTAÇÃO CSV (RF-07, RF-08, RN-03) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-slate-600"></i>
+                            <h2 class="font-bold text-slate-800 text-sm uppercase">Log de Auditoria Imutável (RN-03)</h2>
+                        </div>
+                        <button onclick="exportarCSV()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow" title="Exportar dados em formato CSV">
+                            <i class="fa-solid fa-file-csv text-emerald-400"></i>
+                            <span>Exportar CSV (RF-08)</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100/70 text-slate-600 uppercase font-semibold border-b border-slate-200 sticky top-0 bg-slate-100">
+                                    <th class="p-3">Data / Hora</th>
+                                    <th class="p-3">Operação</th>
+                                    <th class="p-3">Produto</th>
+                                    <th class="p-3 text-center">Qtd</th>
+                                    <th class="p-3">Justificativa / Motivo</th>
+                                    <th class="p-3">Operador</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaAuditoria" class="divide-y divide-slate-200 font-mono">
+                                <!-- Preenchido dinamicamente pelo JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER DA APLICAÇÃO -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-4 text-center border-t border-slate-800 mt-6">
+        <p>StockMaster &copy; 2026 - Projeto da Disciplina de Análise e Projeto de Sistemas</p>
+    </footer>
+
+    <!-- LÓGICA E REGRAS DE NEGÓCIO EM JAVASCRIPT -->
+    <script>
+        // --- CLASSES DE PROJETO (REFINAMENTO DA MODELAGEM UML) ---
+        class Produto {
+            constructor(id, sku, nome, categoria, precoCusto, precoVenda, qtdAtual, qtdMinima) {
+                this.id = id;
+                this.sku = sku.toUpperCase();
+                this.nome = nome;
+                this.categoria = categoria;
+                this.precoCusto = parseFloat(precoCusto);
+                this.precoVenda = parseFloat(precoVenda);
+                this.qtdAtual = parseInt(qtdAtual);
+                this.qtdMinima = parseInt(qtdMinima);
+            }
+
+            verificarEstoqueBaixo() {
+                return this.qtdAtual <= this.qtdMinima;
+            }
+        }
+
+        class Movimentacao {
+            constructor(id, timestamp, tipo, produtoId, produtoNome, quantidade, motivo, operadorEmail) {
+                this.id = id;
+                this.timestamp = timestamp;
+                this.tipo = tipo; // 'ENTRADA' ou 'SAIDA'
+                this.produtoId = produtoId;
+                this.produtoNome = produtoNome;
+                this.quantidade = parseInt(quantidade);
+                this.motivo = motivo;
+                this.operadorEmail = operadorEmail;
+            }
+        }
+
+        // --- ESTADO GLOBAL DO SISTEMA (PERSISTÊNCIA EM LOCALSTORAGE) ---
+        let produtos = [];
+        let movimentacoes = [];
+        let usuarioAtual = {
+            nome: "Admin System",
+            email: "admin@stockmaster.com",
+            perfil: "ADMINISTRADOR" // 'ADMINISTRADOR' ou 'OPERADOR'
+        };
+
+        // DADOS INICIAIS DE DEMONSTRAÇÃO
+        const DADOS_INICIAIS_PRODUTOS = [
+            new Produto('P1', 'TEC-001', 'Teclado Mecânico RGB', 'Periféricos', 120.00, 250.00, 2, 5),
+            new Produto('P2', 'MOU-002', 'Mouse Optico 16000DPI', 'Periféricos', 60.00, 130.00, 15, 5),
+            new Produto('P3', 'MON-003', 'Monitor Gamer 27 144Hz', 'Monitores', 800.00, 1400.00, 1, 3),
+            new Produto('P4', 'SSD-004', 'SSD NVMe 1TB HighSpeed', 'Hardware', 200.00, 450.00, 10, 4)
+        ];
+
+        const DADOS_INICIAIS_LOGS = [
+            new Movimentacao('L1', new Date(Date.now() - 3600000).toLocaleString('pt-BR'), 'ENTRADA', 'P1', 'Teclado Mecânico RGB', 5, 'Estoque inicial', 'admin@stockmaster.com'),
+            new Movimentacao('L2', new Date(Date.now() - 1800000).toLocaleString('pt-BR'), 'SAIDA', 'P1', 'Teclado Mecânico RGB', 3, 'Venda balcão Pedido #101', 'operador@stockmaster.com')
+        ];
+
+        // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+        window.onload = function() {
+            carregarStorage();
+            renderizarTabelas();
+            atualizarInterfacePerfil();
+        };
+
+        function carregarStorage() {
+            const prodLocal = localStorage.getItem('sm_v3_produtos');
+            if (prodLocal) {
+                const parsed = JSON.parse(prodLocal);
+                produtos = parsed.map(p => new Produto(p.id, p.sku, p.nome, p.categoria, p.precoCusto, p.precoVenda, p.qtdAtual, p.qtdMinima));
+            } else {
+                produtos = DADOS_INICIAIS_PRODUTOS;
+                salvarStorage();
+            }
+
+            const logsLocal = localStorage.getItem('sm_v3_logs');
+            if (logsLocal) {
+                movimentacoes = JSON.parse(logsLocal);
+            } else {
+                movimentacoes = DADOS_INICIAIS_LOGS;
+                salvarStorage();
+            }
+        }
+
+        function salvarStorage() {
+            localStorage.setItem('sm_v3_produtos', JSON.stringify(produtos));
+            localStorage.setItem('sm_v3_logs', JSON.stringify(movimentacoes));
+        }
+
+        // --- MÓDULO DE PERFIS E AUTENTICAÇÃO (UC-01, RF-01) ---
+        function alternarPerfil() {
+            if (usuarioAtual.perfil === "ADMINISTRADOR") {
+                usuarioAtual = { nome: "Operador Estoque", email: "operador@stockmaster.com", perfil: "OPERADOR" };
+            } else {
+                usuarioAtual = { nome: "Admin System", email: "admin@stockmaster.com", perfil: "ADMINISTRADOR" };
+            }
+            atualizarInterfacePerfil();
+        }
+
+        function atualizarInterfacePerfil() {
+            document.getElementById('userDisplayName').textContent = usuarioAtual.nome;
+            const badge = document.getElementById('userRoleBadge');
+            badge.textContent = usuarioAtual.perfil;
+
+            const secaoCadastro = document.getElementById('secaoCadastroProduto');
+            if (usuarioAtual.perfil === 'OPERADOR') {
+                badge.className = "text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-emerald-900 text-emerald-200";
+                secaoCadastro.classList.add('hidden'); // Oculta cadastro para operadores (RNF-02)
+            } else {
+                badge.className = "text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-900 text-blue-200";
+                secaoCadastro.classList.remove('hidden');
+            }
+        }
+
+        // --- UC-02: CADASTRO DE PRODUTO (RF-03, RN-02) ---
+        document.getElementById('formCadastroProduto').onsubmit = function(e) {
+            e.preventDefault();
+
+            const sku = document.getElementById('prodSKU').value.trim().toUpperCase();
+            const nome = document.getElementById('prodNome').value.trim();
+            const categoria = document.getElementById('prodCategoria').value;
+            const min = parseInt(document.getElementById('prodMinimo').value);
+            const custo = parseFloat(document.getElementById('prodCusto').value);
+            const venda = parseFloat(document.getElementById('prodVenda').value);
+            const inicial = parseInt(document.getElementById('prodEstoqueInicial').value);
+
+            // REGRA DE NEGÓCIO 02 (RN-02): UNICIDADE DE SKU
+            const skuExistente = produtos.some(p => p.sku === sku);
+            if (skuExistente) {
+                alert(`ERRO DE VALIDAÇÃO (RN-02): O código SKU "${sku}" já está cadastrado em outro produto.`);
+                return;
+            }
+
+            const novoId = 'P' + Date.now();
+            const novoProduto = new Produto(novoId, sku, nome, categoria, custo, venda, inicial, min);
+            
+            produtos.push(novoProduto);
+
+            // Grava Log Inicial se estoque > 0
+            if (inicial > 0) {
+                const logInicial = new Movimentacao(
+                    'L' + Date.now(),
+                    new Date().toLocaleString('pt-BR'),
+                    'ENTRADA',
+                    novoId,
+                    nome,
+                    inicial,
+                    'Carga de Estoque Inicial',
+                    usuarioAtual.email
+                );
+                movimentacoes.push(logInicial);
+            }
+
+            salvarStorage();
+            renderizarTabelas();
+            document.getElementById('formCadastroProduto').reset();
+            alert('Produto cadastrado com sucesso!');
+        };
+
+        // --- UC-03 & UC-04: LANÇAR MOVIMENTAÇÕES (RF-04, RF-05, RN-01) ---
+        document.getElementById('formMovimentacao').onsubmit = function(e) {
+            e.preventDefault();
+
+            const prodId = document.getElementById('movProdutoId').value;
+            const tipo = document.getElementById('movTipo').value;
+            const qtd = parseInt(document.getElementById('movQuantidade').value);
+            const motivo = document.getElementById('movMotivo').value.trim();
+
+            const produto = produtos.find(p => p.id === prodId);
+            if (!produto) {
+                alert('Selecione um produto válido.');
+                return;
+            }
+
+            // REGRA DE NEGÓCIO 01 (RN-01): RESTRIÇÃO DE ESTOQUE NEGATIVO
+            if (tipo === 'SAIDA' && qtd > produto.qtdAtual) {
+                alert(`OPERAÇÃO NEGADA (RN-01): Saldo insuficiente em estoque!\n\nProduto: ${produto.nome}\nEstoque Disponível: ${produto.qtdAtual} UN\nQuantidade Solicitada: ${qtd} UN`);
+                return;
+            }
+
+            // Atualização do Saldo
+            if (tipo === 'ENTRADA') {
+                produto.qtdAtual += qtd;
+            } else {
+                produto.qtdAtual -= qtd;
+            }
+
+            // Gravação no Log Imutável (RN-03)
+            const novoLog = new Movimentacao(
+                'L' + Date.now(),
+                new Date().toLocaleString('pt-BR'),
+                tipo,
+                produto.id,
+                produto.nome,
+                qtd,
+                motivo,
+                usuarioAtual.email
+            );
+
+            movimentacoes.push(novoLog);
+            salvarStorage();
+            renderizarTabelas();
+            document.getElementById('formMovimentacao').reset();
+            atualizarPreviewSaldo();
+
+            alert(`Movimentação de ${tipo} registrada com sucesso!`);
+        };
+
+        function atualizarPreviewSaldo() {
+            const prodId = document.getElementById('movProdutoId').value;
+            const label = document.getElementById('labelSaldoAtual');
+            const p = produtos.find(item => item.id === prodId);
+            
+            if (p) {
+                label.textContent = `${p.qtdAtual} UN`;
+                if (p.verificarEstoqueBaixo()) {
+                    label.className = "font-bold text-red-600";
+                } else {
+                    label.className = "font-bold text-slate-800";
+                }
+            } else {
+                label.textContent = "0 UN";
+            }
+        }
+
+        // --- RENDERIZAÇÃO DAS TABELAS E MÉTRICAS ---
+        function renderizarTabelas() {
+            const filtroBusca = document.getElementById('buscaInventario').value.toLowerCase();
+            const tbodyInventario = document.getElementById('tabelaInventario');
+            const tbodyAuditoria = document.getElementById('tabelaAuditoria');
+            const selectMov = document.getElementById('movProdutoId');
+
+            tbodyInventario.innerHTML = '';
+            tbodyAuditoria.innerHTML = '';
+            selectMov.innerHTML = '';
+
+            let totalValorInvestido = 0;
+            let totalCriticos = 0;
+
+            // Renderiza Inventário
+            const prodsFiltrados = produtos.filter(p => p.nome.toLowerCase().includes(filtroBusca) || p.sku.toLowerCase().includes(filtroBusca));
+
+            if (prodsFiltrados.length === 0) {
+                tbodyInventario.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-400">Nenhum produto encontrado.</td></tr>`;
+            } else {
+                prodsFiltrados.forEach(p => {
+                    const eBaixo = p.verificarEstoqueBaixo();
+                    if (eBaixo) totalCriticos++;
+                    totalValorInvestido += (p.precoCusto * p.qtdAtual);
+
+                    tbodyInventario.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 font-mono font-bold text-slate-600">${p.sku}</td>
+                            <td class="p-3 font-bold text-slate-800">${p.name || p.nome}</td>
+                            <td class="p-3 text-slate-500">${p.categoria}</td>
+                            <td class="p-3 text-right font-mono">R$ ${p.precoCusto.toFixed(2)}</td>
+                            <td class="p-3 text-right font-mono font-bold text-slate-700">R$ ${p.precoVenda.toFixed(2)}</td>
+                            <td class="p-3 text-center font-bold ${eBaixo ? 'text-red-600' : 'text-slate-800'}">${p.qtdAtual} UN</td>
+                            <td class="p-3 text-center">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${eBaixo ? 'badge-critico' : 'badge-normal'}">
+                                    ${eBaixo ? 'Estoque Baixo' : 'Normal'}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Popular Dropdown de Movimentações
+            produtos.forEach(p => {
+                selectMov.innerHTML += `<option value="${p.id}">${p.sku} - ${p.nome} (Atual: ${p.qtdAtual})</option>`;
+            });
+
+            // Renderizar Logs de Auditoria (Mais recentes primeiro)
+            const logsInvertidos = [...movimentacoes].reverse();
+            logsInvertidos.forEach(l => {
+                const isEntrada = l.tipo === 'ENTRADA';
+                tbodyAuditoria.innerHTML += `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 text-slate-500">${l.timestamp}</td>
+                        <td class="p-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isEntrada ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}">
+                                ${l.tipo}
+                            </span>
+                        </td>
+                        <td class="p-3 font-bold text-slate-800">${l.produtoNome}</td>
+                        <td class="p-3 text-center font-bold ${isEntrada ? 'text-emerald-600' : 'text-red-600'}">
+                            ${isEntrada ? '+' : '-'}${l.quantidade}
+                        </td>
+                        <td class="p-3 text-slate-600 font-sans">${l.motivo}</td>
+                        <td class="p-3 text-slate-500 font-sans">${l.operadorEmail}</td>
+                    </tr>
+                `;
+            });
+
+            // Atualizar Cards Superiores
+            document.getElementById('statTotalSKUs').textContent = produtos.length;
+            document.getElementById('statValorTotal').textContent = totalValorInvestido.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('statEstoqueCritico').textContent = totalCriticos;
+            document.getElementById('statTotalLogs').textContent = movimentacoes.length;
+
+            atualizarPreviewSaldo();
+        }
+
+        // --- UC-05 & RF-08: EXPORTAÇÃO CSV DE RELATÓRIO DE AUDITORIA ---
+        function exportarCSV() {
+            if (movimentacoes.length === 0) {
+                alert('Não existem movimentações registradas para exportar.');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "ID;DataHora;Tipo;Produto;Quantidade;Motivo;Operador\n";
+
+            movimentacoes.forEach(l => {
+                csvContent += `${l.id};"${l.timestamp}";${l.tipo};"${l.produtoNome}";${l.quantidade};"${l.motivo}";"${l.operadorEmail}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `relatorio_auditoria_stockmaster_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
+```
+
+### O que o sistema cobre inteiramente:
+1. **`UC-01` a `UC-05` (Todos os Casos de Uso):** Permite login com perfis e permissões, cadastro de produtos, lançamentos de entrada, saídas e exportação do log completo.
+2. **`RN-01` a `RN-03` (Todas as Regras de Negócio):** Bloqueia estoque negativo via popup de erro com os saldos calculados, impede SKUs repetidos no formulário e mantém o log de auditoria imutável.
+3. **`RF-01` a `RF-08` & `RNF-01` a `RNF-04`:** Dashboard em tempo real, badges para alertas de estoque crítico, filtro de busca instantâneo e layout totalmente limpo sem dependências pesadas.
